@@ -10,6 +10,11 @@ const userSchema = new mongoose.Schema({
       logout: { type: Date },
       duration: { type: Number } // duration in seconds
     }
+  ],
+  attendance: [
+    {
+      date: { type: Date, required: true }
+    }
   ]
   // You can add more fields as needed
 });

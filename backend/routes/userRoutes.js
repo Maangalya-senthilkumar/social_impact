@@ -24,22 +24,40 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Log a session for a user (student or parent)
-router.post('/log-session', async (req, res) => {
+// User login
+router.post('/login', async (req, res) => {
   try {
-    const { userId, login, logout } = req.body;
+    const { name } = req.body; // You can change this to phone/email if you add it to the model
+    const user = await User.findOne({ name });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    // Record login time (start a new session)
+    user.sessions.push({ login: new Date() });
+    await user.save();
+    res.status(200).json({ message: 'Login successful', user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// User logout (update last session's logout time and duration)
+router.post('/logout', async (req, res) => {
+  try {
+    const { userId } = req.body;
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    if (user.role === 'student' || user.role === 'parent') {
-      const duration = (new Date(logout) - new Date(login)) / 1000; // seconds
-      user.sessions.push({ login, logout, duration });
-      await user.save();
-      return res.status(200).json({ message: 'Session logged', sessions: user.sessions });
-    } else {
-      return res.status(400).json({ error: 'Session tracking not allowed for this role' });
+    // Find the last session (assume it's the current one)
+    const lastSession = user.sessions[user.sessions.length - 1];
+    if (!lastSession || lastSession.logout) {
+      return res.status(400).json({ error: 'No active session to logout' });
     }
+    lastSession.logout = new Date();
+    lastSession.duration = (new Date(lastSession.logout) - new Date(lastSession.login)) / 1000;
+    await user.save();
+    res.status(200).json({ message: 'Logout successful', sessions: user.sessions });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
